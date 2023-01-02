@@ -1,29 +1,45 @@
 import { Form, FormButton, FormInput } from "@fluentui/react-northstar";
 import { useState } from "react";
 
-export function GitHubForm() {
+enum GitHubFormState {
+    NotSubmitted,
+    Submitting,
+    Submitted,
+    Error,
+}
 
-    const [submitting, setSubmitting] = useState(false);
+export function GitHubForm({data, setData}: {data: any, setData: (newData: any) => void} ) {
+    const [githubUsername, setGithubUsername] = useState(data?.githubUsername || "");
+    const [state, setState] = useState(data?.githubUsername ? GitHubFormState.Submitted : GitHubFormState.NotSubmitted);
     const handleSubmit = (event: any) => {
         event.preventDefault();
-        setSubmitting(true)
+        setData({githubUsername: event.target.githubUsername.value})
+        setState(GitHubFormState.Submitting);
     }
 
     return (
         <>
         <Form style={{justifyContent:"normal"}} onSubmit={handleSubmit}>
             <FormInput
+            name="githubUsername"
             label="Enter your GitHub username"
             aria-label="GitHub username"
             styles={{
                 width: "100%",
             }}
-            disabled={submitting}
+            disabled={state === GitHubFormState.Submitting}
+            value={githubUsername}
             />
-            {submitting ? (
+            {state === GitHubFormState.Submitting ? (
                 <FormButton content="Provisioning..." loading disabled />
             ) : (
                 <FormButton content="Submit" />
+            )}
+            {state === GitHubFormState.Submitted && (
+                <div>✅</div>
+            )}
+            {state === GitHubFormState.Error && (
+                <div>Error!</div>
             )}
             
         </Form>

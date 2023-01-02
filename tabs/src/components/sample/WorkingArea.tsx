@@ -9,10 +9,12 @@ import {YouTubeVideo} from "./YouTubeVideo";
 
 interface WorkingAreaProps {
   step: number;
+  data: any;
+  setData: (newData: any) => void;
 }
 
 export function WorkingArea(props: WorkingAreaProps) {
-  const { step } = props;
+  const { step, data, setData } = props;
   const getContent = (step: number) => {
     switch (step) {
         case 0:
@@ -27,7 +29,7 @@ export function WorkingArea(props: WorkingAreaProps) {
                     <p>
                         This process may take a few minutes so go grab a coffee while you wait... ☕
                     </p>
-                    <GitHubForm />
+                    <GitHubForm data={data} setData={setData} />
                 </>
             )
         case 1:

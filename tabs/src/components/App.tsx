@@ -1,7 +1,7 @@
 // https://fluentsite.z22.web.core.windows.net/quick-start
 import { Provider, teamsTheme, Loader } from "@fluentui/react-northstar";
 import { HashRouter as Router, Redirect, Route } from "react-router-dom";
-import { useTeamsFx, useTeamsUserCredential } from "@microsoft/teamsfx-react";
+import { useTeamsUserCredential } from "@microsoft/teamsfx-react";
 import Privacy from "./Privacy";
 import TermsOfUse from "./TermsOfUse";
 import Tab from "./Tab";

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import "./Welcome.css";
 import { EditCode } from "./EditCode";
 import { Graph } from "./Graph";
@@ -13,9 +13,12 @@ import {
   Image,
   List,
   Segment,
-  Flex
+  Flex,
+  Loader
 } from "@fluentui/react-northstar";
 import { WorkingArea } from "./WorkingArea";
+import { CandidateChallenge, CodingChallengeProcess, DataService } from "../../services/DataService";
+import * as microsoftTeams from "@microsoft/teams-js";
 
 // Define an interface for completed steps, including a step number, a completed boolean, and a timestamp
 interface StepDetails {
@@ -28,56 +31,91 @@ export function Welcome(props: { environment?: string }) {
     environment: window.location.hostname === "localhost" ? "local" : "azure",
     ...props,
   };
-  const { teamsUserCredential } = useContext(TeamsFxContext);
-  const { loading, data, error } = useData(async () => {
-    if (teamsUserCredential) {
-      const userInfo = await teamsUserCredential.getUserInfo();
-      return userInfo;
-    }
-  });
-  const userName = (loading || error) ? "": data!.displayName;
-  const [currentStep, setCurrentStep] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState([] as StepDetails[]);
 
+  const [currentStep, setCurrentStep] = useState(0);
+  const [context, setContext] = useState({} as microsoftTeams.app.Context);
+  const [email, setEmail] = useState("");
+  const [candidateChallenge, setCandidateChallenge] = useState({} as CandidateChallenge)
+  const [codingChallengeDetails, setCodingChallengeDetails] = useState({} as CodingChallengeProcess);
+  let userName = context?.user?.displayName
+
+  const handleUpdate = useCallback((newCodingChallengeDetails) => {
+    setCodingChallengeDetails(newCodingChallengeDetails)
+    DataService.persistCodingChallengeProgress(email, newCodingChallengeDetails)
+  }, [email, setCodingChallengeDetails])
+
+  const handleDataUpdate = useCallback((newData:any) => {
+    let newCodingChallengeDetails = {...codingChallengeDetails}
+    newCodingChallengeDetails.Steps[currentStep].Data = newData
+    handleUpdate(newCodingChallengeDetails)
+  }, [codingChallengeDetails, currentStep, handleUpdate])
+
+  useEffect(() => {
+    (async () => {
+      setContext(await microsoftTeams.app.getContext())
+    })();
+  }, [microsoftTeams]);
+  useEffect(() => {
+    setEmail(context?.user?.loginHint || "")
+  }, [context])
+  useEffect(() => {
+    (async () => {
+      if (email) {
+        let codingChallenge = await DataService.getCodingChallengeProgress(email)
+        setCandidateChallenge(codingChallenge)
+        setCodingChallengeDetails(codingChallenge.CandidateChallengeDetails)
+      }
+    })();
+  }, [email])
+  // Use effect to console log candidateChallenge
+  useEffect(() => {
+    console.log(candidateChallenge)
+  }, [candidateChallenge])
   // Define the UI elements
-  const timeline = (
+  const timeline = codingChallengeDetails.Steps ? (
     <List>
-      {steps.map((step, i) => (
+      {codingChallengeDetails.Steps?.map((step, i) => (
         <List.Item
           index={i}
           key={i}
-          header={step.summary}
-          headerMedia={completedSteps.some(
-            (completedStep) => completedStep.step === i && completedStep.completed
-          ) && (
+          header={step.Name}
+          headerMedia={step.Completed && (
             <>
             <span className="timestamp">
-              {new Date(completedSteps.find(completedStep => completedStep.step === i)!.timestamp).toLocaleString()}
+              {step.CompletionTime?.toLocaleString()}
             </span>
             {" "}
             ✅
           </>
           )}
-          content={step.text}
+          style={{cursor: "pointer", backgroundColor: currentStep === i ? "#f2f2f2" : "white"}}
+          content={step.Description}
           selected={currentStep === i}
           onClick={() => {
             setCurrentStep(i);
             if (currentStep === i) {
               // Save the completion status and timestamp for the step
-              setCompletedSteps([
-                ...completedSteps,
-                {
-                  step: i,
-                  completed: true,
-                  timestamp: Date.now()
-                }
-              ]);
+              handleUpdate({
+                ...codingChallengeDetails,
+                Steps: codingChallengeDetails.Steps?.map((s, j) => {
+                  if (j === i) {
+                    return {
+                      ...s,
+                      Completed: true,
+                      CompletionTime: new Date()
+                    }
+                  }
+                  return s
+                })
+              })
             }
           }}
         >
         </List.Item>
       ))}
     </List>
+  ) : (
+    <Loader label="Loading..." />
   );
   return (
     <div className="welcome page">
@@ -87,7 +125,7 @@ export function Welcome(props: { environment?: string }) {
         </Header>
         <Flex>
           <Flex.Item size="size.half">
-            <Segment><WorkingArea step={currentStep} /></Segment>
+            <Segment>{codingChallengeDetails && codingChallengeDetails.Steps && <WorkingArea step={currentStep} data={codingChallengeDetails?.Steps[currentStep]?.Data} setData={handleDataUpdate} />}</Segment>
           </Flex.Item>
           <Flex.Item size="size.half">
             <Segment>{timeline}</Segment>
